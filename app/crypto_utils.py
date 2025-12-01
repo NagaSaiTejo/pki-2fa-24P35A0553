@@ -1,7 +1,7 @@
 import base64
 import re
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes, serialization # pyright: ignore[reportMissingImports]
+from cryptography.hazmat.primitives.asymmetric import padding # pyright: ignore[reportMissingImports]
 HEX64_RE = re.compile(r'^[0-9a-f]{64}$')
 def load_private_key(path: str):
     with open(path, "rb") as f:
