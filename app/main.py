@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
 import os
-
+DATA_DIR = Path("/data") if os.getenv("USE_CONTAINER_PATH") == "1" else Path("./data")
 from app.crypto_utils import load_private_key, decrypt_seed
 
 app = FastAPI()
