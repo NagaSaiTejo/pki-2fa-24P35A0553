@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: pki-2fa-app
+    ports:
+      - "8080:8080"
+    environment:
+      - USE_CONTAINER_PATH=1
+      - TZ=UTC
+    volumes:
+      - ./data:/data
+      - ./cron:/cron
+    restart: unless-stopped
