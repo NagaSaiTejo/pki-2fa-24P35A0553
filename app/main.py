@@ -2,10 +2,18 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from pathlib import Path
 import os
-DATA_DIR = Path("/data") if os.getenv("USE_CONTAINER_PATH") == "1" else Path("./data")
-from app.crypto_utils import load_private_key, decrypt_seed
+import time
+
+from app.crypto_utils import (
+    load_private_key,
+    decrypt_seed,
+    generate_totp_code,
+    totp_time_left
+)
 
 app = FastAPI()
+
+# Path handling for local vs docker
 if os.getenv("USE_CONTAINER_PATH") == "1":
     DATA_DIR = Path("/data")
     PRIVATE_KEY_PATH = Path("/app/student_private.pem")
@@ -16,10 +24,20 @@ else:
 SEED_PATH = DATA_DIR / "seed.txt"
 
 
+# -----------------------------
+# Models
+# -----------------------------
 class DecryptRequest(BaseModel):
     encrypted_seed: str
 
 
+class VerifyRequest(BaseModel):
+    code: str
+
+
+# -----------------------------
+# /decrypt-seed
+# -----------------------------
 @app.post("/decrypt-seed")
 async def decrypt_seed_endpoint(req: DecryptRequest):
 
@@ -36,13 +54,11 @@ async def decrypt_seed_endpoint(req: DecryptRequest):
     except:
         raise HTTPException(status_code=500, detail={"error": "Decryption failed"})
 
-    # write seed.txt
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         with open(SEED_PATH, "w", newline="\n") as f:
             f.write(seed_hex + "\n")
 
-        # ignore on Windows
         try:
             os.chmod(SEED_PATH, 0o600)
         except:
@@ -52,3 +68,23 @@ async def decrypt_seed_endpoint(req: DecryptRequest):
         raise HTTPException(status_code=500, detail={"error": "Failed to store seed"})
 
     return {"status": "ok"}
+
+
+# -----------------------------
+# /generate-2fa
+# -----------------------------
+@app.get("/generate-2fa")
+async def generate_2fa():
+
+    if not SEED_PATH.exists():
+        raise HTTPException(status_code=500, detail={"error": "Seed not decrypted yet"})
+
+    seed_hex = SEED_PATH.read_text().strip()
+
+    try:
+        code = generate_totp_code(seed_hex)
+        remaining = totp_time_left()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": "TOTP generation failed"})
+
+    return {"code": code, "valid_for": remaining}
