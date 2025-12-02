@@ -8,7 +8,8 @@ from app.crypto_utils import (
     load_private_key,
     decrypt_seed,
     generate_totp_code,
-    totp_time_left
+    totp_time_left,
+    verify_totp_code
 )
 
 app = FastAPI()
@@ -88,3 +89,21 @@ async def generate_2fa():
         raise HTTPException(status_code=500, detail={"error": "TOTP generation failed"})
 
     return {"code": code, "valid_for": remaining}
+
+@app.post("/verify-2fa")
+async def verify_2fa(req: VerifyRequest):
+
+    if not req.code:
+        raise HTTPException(status_code=400, detail={"error": "Missing code"})
+
+    if not SEED_PATH.exists():
+        raise HTTPException(status_code=500, detail={"error": "Seed not decrypted yet"})
+
+    seed_hex = SEED_PATH.read_text().strip()
+
+    try:
+        is_valid = verify_totp_code(seed_hex, req.code, valid_window=1)
+    except:
+        raise HTTPException(status_code=500, detail={"error": "Verification failed"})
+
+    return {"valid": is_valid}

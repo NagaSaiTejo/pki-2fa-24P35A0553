@@ -47,22 +47,21 @@ def decrypt_seed(encrypted_seed_b64: str, private_key) -> str:
 
 
 # ------------------------------
-# TOTP HELPERS FOR STEP 6
+# TOTP HELPERS
 # ------------------------------
-
 def hex_to_base32(hex_seed: str) -> str:
     """
     Convert 64-character hex seed → bytes → Base32 string.
-    Base32 is used by TOTP (RFC 6238).
+    Base32 is required by TOTP (RFC 6238).
     """
     seed_bytes = bytes.fromhex(hex_seed)
     b32 = base64.b32encode(seed_bytes).decode("utf-8")
-    return b32.rstrip("=")  # remove padding (optional)
+    return b32.rstrip("=")   # remove padding for consistency
 
 
 def generate_totp_code(hex_seed: str) -> str:
     """
-    Generate current TOTP code (6 digits, 30s, SHA-1).
+    Generate current TOTP code (6 digits, 30s interval, SHA-1).
     """
     b32 = hex_to_base32(hex_seed)
     totp = pyotp.TOTP(b32, digits=6, interval=30, digest="sha1")
@@ -76,11 +75,14 @@ def totp_time_left() -> int:
     return 30 - (int(time.time()) % 30)
 
 
-def verify_totp_code(hex_seed: str, code: str, window: int = 1) -> bool:
+def verify_totp_code(hex_seed: str, code: str, valid_window: int = 1) -> bool:
     """
-    Verify a TOTP code allowing ± window steps (default 1 step = 30 seconds).
-    Needed for /verify-2fa endpoint.
+    Verify a TOTP code allowing ± valid_window steps (default 1 step = 30 seconds).
+    This provides ±30s tolerance for /verify-2fa.
     """
-    b32 = hex_to_base32(hex_seed)
-    totp = pyotp.TOTP(b32, digits=6, interval=30, digest="sha1")
-    return totp.verify(code, valid_window=window)
+    try:
+        b32 = hex_to_base32(hex_seed)
+        totp = pyotp.TOTP(b32, digits=6, interval=30, digest="sha1")
+        return totp.verify(code, valid_window=valid_window)
+    except:
+        return False
