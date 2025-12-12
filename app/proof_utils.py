@@ -11,10 +11,6 @@ def load_public_key(path: str):
         return serialization.load_pem_public_key(f.read())
 
 def sign_message(message: str, private_key) -> bytes:
-    """
-    Sign commit hash using RSA-PSS SHA256.
-    Message must be ASCII bytes, not hex decoded.
-    """
     message_bytes = message.encode("utf-8")
     signature = private_key.sign(
         message_bytes,
